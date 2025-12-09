@@ -1,9 +1,12 @@
 import { Router } from "express"
+import { generateQuestions, scoreQuiz } from "../controllers/ai.controller"
 
 const router = Router()
 
-router.get("/", (_req, res) => {
-  res.json({ message: "AI placeholder" })
-})
+// Generate 40-question quiz for a given language (public)
+router.post("/generate", generateQuestions)
+
+// Score submitted answers against provided questions (public)
+router.post("/score", scoreQuiz)
 
 export default router
