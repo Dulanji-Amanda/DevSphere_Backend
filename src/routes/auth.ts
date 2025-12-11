@@ -1,6 +1,7 @@
 import { Router } from "express"
 import {
   getMyProfile,
+  updateMyProfile,
   login,
   refreshToken,
   registerAdmin,
@@ -34,6 +35,7 @@ router.post(
 
 // me - Admin or User both
 router.get("/me", authenticate, getMyProfile)
+router.put("/me", authenticate, updateMyProfile)
 
 // router.get("/test", authenticate, () => {})
 

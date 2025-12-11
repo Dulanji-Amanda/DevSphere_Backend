@@ -123,6 +123,35 @@ export const getMyProfile = async (req: AUthRequest, res: Response) => {
   res.status(200).json({ message: "ok", data: { id: _id, email, roles } })
 }
 
+export const updateMyProfile = async (req: AUthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized" })
+  }
+  try {
+    const { email, firstname, lastname } = req.body as {
+      email?: string
+      firstname?: string
+      lastname?: string
+    }
+    const user = await User.findById(req.user.sub)
+    if (!user) {
+      return res.status(404).json({ message: "User not found" })
+    }
+    if (email) user.email = email
+    if (firstname) (user as any).firstname = firstname
+    if (lastname) (user as any).lastname = lastname
+    await user.save()
+    const { roles, _id } = user as IUSER
+    return res.status(200).json({
+      message: "updated",
+      data: { id: _id, email: user.email, firstname, lastname, roles }
+    })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+}
+
 export const refreshToken = async (req: Request, res: Response) => {
   try {
     const { token } = req.body
