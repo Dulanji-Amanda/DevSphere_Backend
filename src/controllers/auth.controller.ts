@@ -147,3 +147,26 @@ export const refreshToken = async (req: Request, res: Response) => {
     res.status(403).json({ message: "Invalid or expire token" })
   }
 }
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body as { email?: string }
+    // Intentionally respond with a generic message to avoid user enumeration
+    if (!email) {
+      return res.status(200).json({
+        message:
+          "If an account exists for this email, a reset link has been sent."
+      })
+    }
+
+    // Here you would normally generate a token and send an email.
+    // This is a placeholder implementation to satisfy the frontend request.
+    return res.status(200).json({
+      message:
+        "If an account exists for this email, a reset link has been sent."
+    })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
