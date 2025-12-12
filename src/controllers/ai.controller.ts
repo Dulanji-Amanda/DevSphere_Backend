@@ -33,10 +33,15 @@ const supportedLanguages = Object.keys(languageNames)
  * Generate quiz questions using the free Hugging Face Inference API.
  * Model default: microsoft/Phi-3-mini-4k-instruct (fast, open, free tier).
  */
-const generateQuestionsWithHuggingFace = async (language: string): Promise<QuizQuestion[]> => {
+const generateQuestionsWithHuggingFace = async (
+  language: string,
+  count: number = 40
+): Promise<QuizQuestion[]> => {
   const displayName = languageNames[language] || language
 
-  const prompt = `You are an expert programming instructor. Generate exactly 40 multiple-choice quiz questions about ${displayName} programming.
+  const n = Math.max(1, Math.min(40, Math.floor(count)))
+
+  const prompt = `You are an expert programming instructor. Generate exactly ${n} multiple-choice quiz questions about ${displayName} programming.
 
 Requirements:
 - Exactly 4 answer options per question.
@@ -56,7 +61,7 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact shape:
   ]
 }
 
-Ensure the correctAnswer is the zero-based index (0-3). Generate exactly 40 questions.`
+Ensure the correctAnswer is the zero-based index (0-3). Generate exactly ${n} questions.`
 
   const candidateModels = Array.from(new Set([
     HF_MODEL,
@@ -158,7 +163,7 @@ Ensure the correctAnswer is the zero-based index (0-3). Generate exactly 40 ques
 
       const questions: QuizQuestion[] = parsed.questions
         .filter((q: any) => q && typeof q.question === "string" && Array.isArray(q.options))
-        .slice(0, 40)
+        .slice(0, n)
         .map((q: any) => {
           const opts = (q.options as any[]).slice(0, 4)
           while (opts.length < 4) opts.push("")
@@ -188,7 +193,7 @@ Ensure the correctAnswer is the zero-based index (0-3). Generate exactly 40 ques
 }
 
 export const generateQuestions = async (req: Request, res: Response) => {
-  const { language } = req.body as { language?: string }
+  const { language, count } = req.body as { language?: string; count?: number }
   console.log("/ai/generate called with:", req.body)
 
   const key = (language || "java").toLowerCase()
@@ -201,9 +206,10 @@ export const generateQuestions = async (req: Request, res: Response) => {
   }
 
   try {
-    console.log(`Generating questions for ${key} using Hugging Face Inference API...`)
-    const questions = await generateQuestionsWithHuggingFace(key)
-    console.log(`Successfully generated ${questions.length} questions for ${key}`)
+    const n = typeof count === "number" ? count : 40
+    console.log(`Generating ${n} question(s) for ${key} using Hugging Face Inference API...`)
+    const questions = await generateQuestionsWithHuggingFace(key, n)
+    console.log(`Successfully generated ${questions.length} question(s) for ${key}`)
 
     res.json({
       language: key,
@@ -216,6 +222,23 @@ export const generateQuestions = async (req: Request, res: Response) => {
       message: "Failed to generate questions. Please try again later.",
       error: error instanceof Error ? error.message : "Unknown error"
     })
+  }
+}
+
+export const generateOneQuestion = async (req: Request, res: Response) => {
+  const { language } = req.body as { language?: string }
+  const key = (language || "java").toLowerCase()
+  if (!supportedLanguages.includes(key)) {
+    return res.status(400).json({
+      message: `Unsupported language. Supported: ${supportedLanguages.join(", ")}`
+    })
+  }
+  try {
+    const questions = await generateQuestionsWithHuggingFace(key, 1)
+    return res.json({ language: key, question: questions[0] })
+  } catch (error) {
+    console.error("Error generating single question:", error)
+    res.status(500).json({ message: "Failed to generate question." })
   }
 }
 

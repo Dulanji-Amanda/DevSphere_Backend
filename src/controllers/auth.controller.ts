@@ -118,9 +118,12 @@ export const getMyProfile = async (req: AUthRequest, res: Response) => {
     })
   }
 
-  const { email, roles, _id } = user as IUSER
+  const { email, roles, _id, firstname, lastname } = user as IUSER
 
-  res.status(200).json({ message: "ok", data: { id: _id, email, roles } })
+  res.status(200).json({
+    message: "ok",
+    data: { id: _id, email, firstname, lastname, roles }
+  })
 }
 
 export const updateMyProfile = async (req: AUthRequest, res: Response) => {
@@ -128,10 +131,12 @@ export const updateMyProfile = async (req: AUthRequest, res: Response) => {
     return res.status(401).json({ message: "Unauthorized" })
   }
   try {
-    const { email, firstname, lastname } = req.body as {
+    const { email, firstname, lastname, currentPassword, newPassword } = req.body as {
       email?: string
       firstname?: string
       lastname?: string
+      currentPassword?: string
+      newPassword?: string
     }
     const user = await User.findById(req.user.sub)
     if (!user) {
@@ -140,11 +145,33 @@ export const updateMyProfile = async (req: AUthRequest, res: Response) => {
     if (email) user.email = email
     if (firstname) (user as any).firstname = firstname
     if (lastname) (user as any).lastname = lastname
+
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ message: "Current password is required" })
+      }
+      const matches = await bcrypt.compare(currentPassword, user.password)
+      if (!matches) {
+        return res.status(400).json({ message: "Current password is incorrect" })
+      }
+      if (newPassword.length < 8) {
+        return res
+          .status(400)
+          .json({ message: "New password must be at least 8 characters" })
+      }
+      user.password = await bcrypt.hash(newPassword, 10)
+    }
     await user.save()
-    const { roles, _id } = user as IUSER
+    const { roles, _id, firstname: savedFirstName, lastname: savedLastName } = user as IUSER
     return res.status(200).json({
       message: "updated",
-      data: { id: _id, email: user.email, firstname, lastname, roles }
+      data: {
+        id: _id,
+        email: user.email,
+        firstname: savedFirstName,
+        lastname: savedLastName,
+        roles
+      }
     })
   } catch (err) {
     console.error(err)
