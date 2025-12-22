@@ -1,7 +1,9 @@
 import { Request, Response } from "express"
 import { IUSER, Role, User } from "../models/user.model"
 import bcrypt from "bcryptjs"
+import crypto from "crypto"
 import { signAccessToken, signRefreshToken } from "../utils/tokens"
+import { sendEmail } from "../utils/email"
 import { AUthRequest } from "../middleware/auth"
 import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
@@ -207,19 +209,140 @@ export const refreshToken = async (req: Request, res: Response) => {
 export const forgotPassword = async (req: Request, res: Response) => {
   try {
     const { email } = req.body as { email?: string }
-    // Intentionally respond with a generic message to avoid user enumeration
+
     if (!email) {
+      return res.status(400).json({ message: "Email is required" })
+    }
+
+    const user = await User.findOne({ email })
+
+    if (!user) {
+      // Respond with success to prevent email enumeration
       return res.status(200).json({
-        message:
-          "If an account exists for this email, a reset link has been sent."
+        message: "If an account exists for this email, an OTP has been sent."
       })
     }
 
-    // Here you would normally generate a token and send an email.
-    // This is a placeholder implementation to satisfy the frontend request.
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+
+    // Hash OTP and set to resetPasswordToken field
+    user.resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(otp)
+      .digest("hex")
+
+    // Set expiration to 10 minutes
+    user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000)
+
+    await user.save()
+
+    const subject = "Password Reset OTP"
+    const text = `Your password reset OTP is: ${otp}. It expires in 10 minutes.`
+    const html = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2 style="color: #6d28d9;">Password Reset Request</h2>
+        <p>You requested a password reset. Use the OTP below to proceed:</p>
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <h1 style="letter-spacing: 5px; color: #6d28d9; margin: 0;">${otp}</h1>
+        </div>
+        <p>This OTP expires in 10 minutes.</p>
+        <p style="font-size: 12px; color: #666;">If you didn't request this, please ignore this email.</p>
+      </div>
+    `
+
+    // Send email asynchronously but don't wait for it to block response if not critical
+    // or wait to ensure delivery. Here we wait.
+    try {
+      await sendEmail(email, subject, text, html);
+    } catch (emailError) {
+      console.error("Failed to send email", emailError)
+      // Optionally return error or just log. 
+      // Returning success to avoid enumeration might be preferred, but if email fails, user can't reset.
+      // Let's assume on failure we tell user (since we already checked user existence implies found)
+      // But for security, we'll keep generic or 500.
+    }
+
+    // Still log for dev purposes if no SMTP
+    // console.log("----------------------------------------------------")
+    // console.log(`Simulated Email Sent to: ${email}`)
+    // console.log(`OTP Code: ${otp}`)
+    // console.log("----------------------------------------------------")
+
     return res.status(200).json({
-      message:
-        "If an account exists for this email, a reset link has been sent."
+      message: "If an account exists for this email, an OTP has been sent."
+    })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+export const verifyOtp = async (req: Request, res: Response) => {
+  try {
+    const { email, otp } = req.body
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required" })
+    }
+
+    const resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(otp)
+      .digest("hex")
+
+    const user = await User.findOne({
+      email,
+      resetPasswordToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    })
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired OTP" })
+    }
+
+    return res.status(200).json({
+      message: "OTP verified successfully"
+    })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { email, otp, password } = req.body
+
+    if (!email || !otp || !password) {
+      return res.status(400).json({ message: "Email, OTP, and password are required" })
+    }
+
+    // Hash the provided OTP to compare
+    const resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(otp)
+      .digest("hex")
+
+    const user = await User.findOne({
+      email,
+      resetPasswordToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    })
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired OTP" })
+    }
+
+    // Update password
+    user.password = await bcrypt.hash(password, 10)
+
+    // Clear reset token fields
+    user.resetPasswordToken = undefined
+    user.resetPasswordExpires = undefined
+
+    await user.save()
+
+    return res.status(200).json({
+      message: "Password updated successfully"
     })
   } catch (err) {
     console.error(err)
