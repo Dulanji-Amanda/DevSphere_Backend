@@ -80,6 +80,8 @@ Notes:
 | `npm run build` | Type-check and emit JS into `dist/`       |
 | `npm run lint`  | Run ESLint across the codebase            |
 
-Deployed URL - https://test-versal-be.vercel.app
 
-For frontend instructions, see [../devsphere_fe/README.md](../devsphere_fe/README.md).
+## 6. Links
+
+#### Deployed URL - https://test-versal-be.vercel.app
+
