@@ -15,8 +15,7 @@ export const registerUser = async (req: Request, res: Response) => {
   try {
     const { email, password, firstname, lastname } = req.body
 
-    // left email form model, right side data varible
-    //   User.findOne({ email: email })
+  
     const existingUser = await User.findOne({ email })
     if (existingUser) {
       return res.status(400).json({ message: "Email exists" })
@@ -251,23 +250,15 @@ export const forgotPassword = async (req: Request, res: Response) => {
       </div>
     `
 
-    // Send email asynchronously but don't wait for it to block response if not critical
-    // or wait to ensure delivery. Here we wait.
+
     try {
       await sendEmail(email, subject, text, html);
     } catch (emailError) {
       console.error("Failed to send email", emailError)
-      // Optionally return error or just log. 
-      // Returning success to avoid enumeration might be preferred, but if email fails, user can't reset.
-      // Let's assume on failure we tell user (since we already checked user existence implies found)
-      // But for security, we'll keep generic or 500.
+    
     }
 
-    // Still log for dev purposes if no SMTP
-    // console.log("----------------------------------------------------")
-    // console.log(`Simulated Email Sent to: ${email}`)
-    // console.log(`OTP Code: ${otp}`)
-    // console.log("----------------------------------------------------")
+
 
     return res.status(200).json({
       message: "If an account exists for this email, an OTP has been sent."

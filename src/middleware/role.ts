@@ -2,7 +2,7 @@ import { NextFunction, Response } from "express"
 import { Role } from "../models/user.model"
 import { AUthRequest } from "./auth"
 
-// need multiple role check
+
 export const requireRole = (roles: Role[]) => {
   return (req: AUthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
@@ -18,4 +18,4 @@ export const requireRole = (roles: Role[]) => {
     next()
   }
 }
-// [].includes
+

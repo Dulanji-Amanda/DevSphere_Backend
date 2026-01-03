@@ -16,21 +16,21 @@ import { Role } from "../models/user.model"
 
 const router = Router()
 
-// register (only USER) - public
+// register (only USER) 
 router.post("/register", registerUser)
 
-// login - public
+// login 
 router.post("/login", login)
 
 router.post("/refresh", refreshToken)
 
-// forgot password - public (placeholder implementation)
+// forgot password  
 router.post("/forgot-password", forgotPassword)
 router.post("/verify-otp", verifyOtp)
-// reset password - public
+// reset password 
 router.post("/reset-password", resetPassword)
 
-// register (ADMIN) - Admin only
+// register (ADMIN)
 router.post(
   "/admin/register",
   authenticate,
